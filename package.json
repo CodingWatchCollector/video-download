@@ -1,0 +1,12 @@
+{
+  "name": "video-download",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "playlist": "node create-playlist.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
