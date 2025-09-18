@@ -4,9 +4,28 @@ var createPlaylist = require("./playlist").createPlaylist;
 
 var playlistUrl =
   process.env.PLAYLIST ||
-  "https://nhkwlive-ojp.akamaized.net/hls/live/2003459/nhkwlive-ojp-en/index_1M.m3u8";
+  "https://nhkworld-tv.akamaized.net/hls/live/2115640/nhkworld-tv/index_1M.m3u8";
 
-var playlistFolderName;
+var wait = (delay) => new Promise((res) => setTimeout(res, delay));
+
+var fetchRetry = ({ url, fetchParams, maxRetries, retryDelay }) => {
+  var _retries = maxRetries ?? 3;
+  var _retryDelay = retryDelay ?? 1000;
+  return fetch(url, fetchParams).catch((error) => {
+    console.error("fetch error", { url, fetchParams, error });
+    if (_retries <= 1) {
+      throw error;
+    }
+    return wait(_retryDelay).then(() =>
+      fetchRetry({
+        url,
+        fetchParams,
+        maxRetries: _retries - 1,
+        retryDelay: _retryDelay,
+      })
+    );
+  });
+};
 
 var newPlaylist = (url) => {
   var baseUrl = url.match(/(^.+\/).*\.m3u8/)?.[1];
@@ -35,7 +54,7 @@ var newPlaylist = (url) => {
   return [
     () => {
       console.log("downloading playlist");
-      fetch(playlistUrl)
+      fetchRetry({ url: playlistUrl })
         .then((res) =>
           res.ok
             ? res.text()
@@ -61,7 +80,7 @@ var newPlaylist = (url) => {
                     ? console.log("already present")
                     : (currentFiles.push(filepath),
                       queue.add(filepath),
-                      fetch(fullPath)
+                      fetchRetry({ url: fullPath })
                         .then((res) => (res.ok ? res.blob() : undefined))
                         .then((blob) => (blob ? blob.arrayBuffer() : undefined))
                         .then((arrayBuffer) => {
@@ -94,11 +113,10 @@ isNaN(startTime)
   ? (console.error("!!! start time not in date format !!!"),
     (startTime = Date.now()))
   : undefined;
+console.log("start time: ", startTime);
 
 var timeout = startTime - Date.now();
-timeout < 0
-  ? (console.error("!!! start time is a date in the past !!!"), (timeout = 0))
-  : undefined;
+timeout < 0 && (timeout = 0);
 
 var main = () => {
   var endDate = process.env.END_DATE
@@ -115,7 +133,6 @@ var main = () => {
     1: playlistFolder,
     2: waitForEmptyQueue,
   } = newPlaylist(playlistUrl);
-  playlistFolderName = playlistFolder;
   var intervalId = setInterval(() => {
     endDate > Date.now()
       ? downloadPlaylist()
@@ -124,15 +141,16 @@ var main = () => {
         waitForEmptyQueue().then(() => createPlaylist(playlistFolder)));
   }, 1000);
   downloadPlaylist();
-  return;
+
+  process.on("SIGINT", () =>
+    waitForEmptyQueue().then(() => {
+      createPlaylist(playlistFolder);
+      console.error("!!! created playlist might not be complete !!!");
+      process.exit(0);
+    })
+  );
 };
 
 var timeoutId = timeout
   ? setTimeout(() => (clearTimeout(timeoutId), main()), timeout)
   : main();
-
-process.on("SIGINT", (signal) => {
-  createPlaylist(playlistFolderName);
-  console.error("!!! created playlist might not be complete !!!");
-  process.kill(process.pid, signal);
-});
