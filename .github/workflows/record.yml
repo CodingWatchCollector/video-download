@@ -1,0 +1,29 @@
+name: Record Stream
+
+on:
+  schedule:
+    - cron: "25 16 * * *"   
+  workflow_dispatch:       
+  
+jobs:
+  record:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Record stream
+        run: |
+          ffmpeg -i "https://media-osa.hls.nhkworld.jp/hls/w/live/master.m3u8" \
+            -t 00:40:00 \
+            -c copy \
+            highlight-day-$(date +'%Y-%m-%d_%H-%M-%S').mkv
+
+      - name: Upload recording as artifact
+        uses: actions/upload-artifact@v5.0.0
+        with:
+          name: recording
+          path: "*.mkv"
+          retention-days: 5
+          
