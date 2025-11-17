@@ -2,7 +2,7 @@ name: Record Stream
 
 on:
   schedule:
-    - cron: "25 16 * * *"   
+    - cron: "28 16 * * *"   
   workflow_dispatch:       
   
 jobs:
@@ -16,7 +16,7 @@ jobs:
       - name: Record stream
         run: |
           ffmpeg -i "https://media-osa.hls.nhkworld.jp/hls/w/live/master.m3u8" \
-            -t 00:40:00 \
+            -t 00:35:00 \
             -c copy \
             highlight-day-$(date +'%Y-%m-%d_%H-%M-%S').mkv
 
@@ -25,5 +25,5 @@ jobs:
         with:
           name: recording
           path: "*.mkv"
-          retention-days: 5
-          
+          retention-days: 1
+          compression-level: 6
