@@ -23,7 +23,6 @@ jobs:
             -t 00:32:00 \
             -f segment \
             -segment_time 300 \
-            -reset_timestamp 1 \
             "output/segment-%03d.mkv"
 
       - name: Upload recording as artifact
