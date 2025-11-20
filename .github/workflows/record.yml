@@ -1,29 +1,36 @@
 name: Record Stream
 
 on:
-  schedule:
-    - cron: "28 16 * * *"   
   workflow_dispatch:       
   
 jobs:
   record:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
+      - name: Create output directory
+        run: mkdir output
+
       - name: Record stream
+        timeout-minutes: 35
         run: |
           ffmpeg -i "https://media-osa.hls.nhkworld.jp/hls/w/live/master.m3u8" \
-            -t 00:35:00 \
             -c copy \
-            highlight-day-$(date +'%Y-%m-%d_%H-%M-%S').mkv
+            -t 00:32:00 \
+            -f segment \
+            -segment_time 300 \
+            -reset_timestamp 1 \
+            "output/segment-%03d.mkv"
 
       - name: Upload recording as artifact
         uses: actions/upload-artifact@v5.0.0
+        if: always()
         with:
-          name: recording
-          path: "*.mkv"
+          name: stream-recording
+          path: output/*.mkv
           retention-days: 1
           compression-level: 6
